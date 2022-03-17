@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
+
 	"github.com/gorilla/mux"
 )
 
@@ -113,7 +116,7 @@ func rest_apktool(w http.ResponseWriter, r *http.Request) {
 }
 
 func uploadHandler (w http.ResponseWriter, r *http.Request) (*os.File , error){
-	fPath := "apk/"
+	fPath := "apk"
 	fmt.Fprintf(w, "Uploadig File\n")
 	// store received file
 	r.ParseMultipartForm(50 << 20)
@@ -136,13 +139,15 @@ func uploadHandler (w http.ResponseWriter, r *http.Request) (*os.File , error){
 	// contentType := http.DetectContentType(fileBytes)
 	// fmt.Fprintf(w,contentType)
 
-	fPath += handler.Filename
+	fPath = filepath.Join(fPath, handler.Filename)
+	// @TODO
+	// checkFile()
 	f,err := os.OpenFile(fPath, os.O_RDONLY | os.O_CREATE,0644)
 	if err != nil {
 		fmt.Fprintf(w,"Error creating file %s",err)
 		return nil, err
 	}
-	// defer f.Close()
+	defer f.Close()
 
 	_,err = f.Write(fileBytes)
 
@@ -154,22 +159,24 @@ func uploadHandler (w http.ResponseWriter, r *http.Request) (*os.File , error){
 	return f, err
 } 
 
+// deprecated commmand example
+// java -jar apktool.jar d ../../../apk/Voice_Recorder_v54.1_apkpure.com.apk
 
+// apktool
 func apktool(f *os.File,w http.ResponseWriter) {
-	c := "tools/"+f.Name()+"_src"
-	fmt.Println(c)
-	if _, err := os.Stat(c); !os.IsNotExist(err) {
-		// path/to/whatever exists
-		fmt.Println("Deleting existing Decoded files")
-		exec.Command("cmd.exe", "/c", "rmdir", "/q", "/s", "D:/Learning/Cyfinoid/GO Codes/apktools/tools/apk/Voice_Recorder_v54.1_apkpure.com.apk_src").Output()
-
-	}
-	// java -jar apktool.jar d ../../../apk/Voice_Recorder_v54.1_apkpure.com.apk
-
+	// apk_path := "apk"
 	path := "tools"
-	// vr := Voice_Recorder_v54.1_apkpure.com.apk
-	SRC_PATH := f.Name() + "_src"
-	cmd := "java -jar apktool.jar d ../" + f.Name() + " -o " + SRC_PATH
+
+	//
+
+	SRC_DIR := f.Name() + "_src"
+	err := checkFolder(path,SRC_DIR)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(f.Name())
+
+	cmd := "java -jar apktool.jar d ../" + f.Name() + " -o " + SRC_DIR
 
 	cmdStruct := exec.Command("cmd.exe", "/c", cmd)
 	cmdStruct.Dir = path
@@ -177,7 +184,7 @@ func apktool(f *os.File,w http.ResponseWriter) {
 	cmdStruct.Stdout = os.Stdout
 	cmdStruct.Stderr = os.Stderr
 
-	err := cmdStruct.Start()
+	err = cmdStruct.Start()
 
 	if err != nil {
 		fmt.Println("Unable to start apktool", err)
@@ -212,4 +219,31 @@ func archive (f string) ([]byte) {
 	}
 	return nil
 
+}
+
+func checkFolder (path string,f string) error{
+	c := filepath.Join(path,f)
+	fmt.Println("Filepath:",c)
+	if _, err := os.Stat(c); !os.IsNotExist(err) {
+		// path/to/whatever exists
+		fmt.Println("Deleting existing Decoded files")
+		if runtime.GOOS == "windows"{
+			_,err = exec.Command("cmd.exe", "/c", "rmdir", "/q", "/s", c).Output()
+			return err
+		}else{
+			_,err = exec.Command("rm","-rf",c).Output()
+			return err
+		}
+	}
+	return nil
+	// err := os.Link(src, dst)
+    // if err != nil {
+    //     return err
+    // }
+
+    // return os.Remove(src)
+}
+
+func checkFile (path string,file string) {
+// @TODO
 }
