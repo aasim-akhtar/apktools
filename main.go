@@ -107,20 +107,23 @@ func rest_apktool(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Println(file.Name())
-	fmt.Fprintf(w,"File Uploaded Sucessfully")
+	fmt.Fprintf(w,"File Uploaded Sucessfully\n")
 	apktool(file,w)
 	// w.Header().Set("Content-Type","application/zip")
 	// w.Write(archive(file.Name()))
-	fmt.Fprintf(w,"Task Completed Sucessfully")
+	fmt.Fprintf(w,"Task Completed Sucessfully\n")
 
 }
 
 func uploadHandler (w http.ResponseWriter, r *http.Request) (*os.File , error){
+	// filepath to store apk
 	fPath := "apk"
 	fmt.Fprintf(w, "Uploadig File\n")
 	// store received file
+	// Parse Multipart-from, set Max filesize to 50MB
 	r.ParseMultipartForm(50 << 20)
 
+	// Get Multipart.File and handler for key "apk"
 	file, handler, err := r.FormFile("apk")
 	if err != nil {
 		fmt.Fprintf(w, "Error Retrieving file %s", err)
@@ -128,8 +131,8 @@ func uploadHandler (w http.ResponseWriter, r *http.Request) (*os.File , error){
 	}
 	// fmt.Println("File: ", handler.Filename, "\nFile Size:", handler.Size, "\nMIME Header", handler.Header)
 
+	// Convert Multipart.File to []byte
 	fileBytes, err := ioutil.ReadAll(file)
-
 	if err != nil {
 		fmt.Println("Error Reading file", err)
 		return nil, err
@@ -164,28 +167,45 @@ func uploadHandler (w http.ResponseWriter, r *http.Request) (*os.File , error){
 
 // apktool
 func apktool(f *os.File,w http.ResponseWriter) {
+	// @TODO f.Name() already contains path eg: "apk/myUploadedFile.apk".
+	// Path where apk files are stored. 
 	// apk_path := "apk"
+
+	// Path to where the tools are stored.
 	path := "tools"
 
-	//
-
+	// Constructing folder name to store apktool output
 	SRC_DIR := f.Name() + "_src"
+
+	// Deletes if folder already exists, apktool fails if the folder exists
 	err := checkFolder(path,SRC_DIR)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println(f.Name())
 
-	cmd := "java -jar apktool.jar d ../" + f.Name() + " -o " + SRC_DIR
-
+	// CMD 1
+	// cmd := "java -jar apktool.jar d ../" + f.Name() + " -o " + SRC_DIR
+	
+	// CMD 2 , can also run with this instead of CMD 1
+ 	cmd := "apktool.bat d ../" + f.Name() + " -o " + SRC_DIR
+	 
 	cmdStruct := exec.Command("cmd.exe", "/c", cmd)
+
+	// In case of CMD 1, without the cmdStruct.Dir = path, cmdStruct.Wait() returns: "Error: Unable to access jarfile apktool.jar"
+	// In case of CMD 2, without the cmdStruct.Dir = path, cmdStruct.Stderr [afaik] returns: "Input file (../apk\myUploadedFile.apk) was not found or was not readable."
+	
+	/*CMD 2 command COULD ALSO be ran by doing the following changes:
+From cmd remove "../" and set cmdStruct.Dir= apk_path i.e. to "apk"
+From cmd remove f.Name() and hardcode the filename, this is because f.Name() returns "apk/myUploadedFile.apk" instead of "myUploadedFile.apk"*/
 	cmdStruct.Dir = path
 	fmt.Println(cmdStruct.Args)
+
+	// Connecting Output and Error to commandline
 	cmdStruct.Stdout = os.Stdout
 	cmdStruct.Stderr = os.Stderr
 
 	err = cmdStruct.Start()
-
 	if err != nil {
 		fmt.Println("Unable to start apktool", err)
 		return
@@ -198,7 +218,6 @@ func apktool(f *os.File,w http.ResponseWriter) {
 		fmt.Println("apktool completion error", err)
 	}
 	fmt.Println("Reached End of Command")
-
 
 }
 
