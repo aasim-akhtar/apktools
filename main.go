@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -108,6 +109,15 @@ func rest_apktool(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println(file.Name())
 	fmt.Fprintf(w,"File Uploaded Sucessfully\n")
+
+	if runtime.GOOS == "linux" {
+		if !isApk("apk", file.Name()) {
+			fmt.Println(file.Name(), "is not an apk file!")
+			os.RemoveAll(filepath.Join("apk", file.Name()))
+			return
+		}		
+	}
+
 	apktool(file,w)
 	// w.Header().Set("Content-Type","application/zip")
 	// w.Write(archive(file.Name()))
@@ -118,6 +128,8 @@ func rest_apktool(w http.ResponseWriter, r *http.Request) {
 func uploadHandler (w http.ResponseWriter, r *http.Request) (*os.File , error){
 	// filepath to store apk
 	fPath := "apk"
+	os.Chdir(fPath)
+	fmt.Println(os.Getwd())
 	fmt.Fprintf(w, "Uploadig File\n")
 	// store received file
 	// Parse Multipart-from, set Max filesize to 50MB
@@ -142,10 +154,10 @@ func uploadHandler (w http.ResponseWriter, r *http.Request) (*os.File , error){
 	// contentType := http.DetectContentType(fileBytes)
 	// fmt.Fprintf(w,contentType)
 
-	fPath = filepath.Join(fPath, handler.Filename)
+	// fPath = filepath.Join(fPath, handler.Filename)
 	// @TODO
 	// checkFile()
-	f,err := os.OpenFile(fPath, os.O_RDONLY | os.O_CREATE,0644)
+	f, err := os.OpenFile(handler.Filename, os.O_RDWR | os.O_CREATE, 0666)
 	if err != nil {
 		fmt.Fprintf(w,"Error creating file %s",err)
 		return nil, err
@@ -158,7 +170,7 @@ func uploadHandler (w http.ResponseWriter, r *http.Request) (*os.File , error){
 		fmt.Fprintf(w,"Error Writing to file %s",err)
 		return nil, err
 	}
-
+	os.Chdir("..")
 	return f, err
 } 
 
@@ -172,25 +184,37 @@ func apktool(f *os.File,w http.ResponseWriter) {
 	// apk_path := "apk"
 
 	// Path to where the tools are stored.
-	path := "tools"
+	// path := "tools"
 
+	dir := filepath.Join("Decompiled Files")
+	// os.MkdirAll(dir,0444)
 	// Constructing folder name to store apktool output
 	SRC_DIR := f.Name() + "_src"
 
 	// Deletes if folder already exists, apktool fails if the folder exists
-	err := checkFolder(path,SRC_DIR)
+	err := checkFolder(dir, SRC_DIR)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("Error deleting folder", err)
 	}
 	fmt.Println(f.Name())
 
 	// CMD 1
 	// cmd := "java -jar apktool.jar d ../" + f.Name() + " -o " + SRC_DIR
-	
+	// cmd := "java"
+	args := "d " + filepath.Join("..", "apk", f.Name()) + " -o " + SRC_DIR
+	// argsSlice := strings.Split(args," ")
 	// CMD 2 , can also run with this instead of CMD 1
- 	cmd := "apktool.bat d ../" + f.Name() + " -o " + SRC_DIR
+	// cmd := "apktool.bat d ../" + f.Name() + " -o " + SRC_DIR
+	
+	var cmdStruct *exec.Cmd
+	if runtime.GOOS == "windows" {
+		// @TODO fix windows cmd
+		cmdStruct = exec.Command("apktool",strings.Split(args, " ")...)
+	}
+	if runtime.GOOS == "linux" {
+		cmdStruct = exec.Command("apktool", strings.Split(args, " ")...)
 	 
-	cmdStruct := exec.Command("cmd.exe", "/c", cmd)
+	}
 
 	// In case of CMD 1, without the cmdStruct.Dir = path, cmdStruct.Wait() returns: "Error: Unable to access jarfile apktool.jar"
 	// In case of CMD 2, without the cmdStruct.Dir = path, cmdStruct.Stderr [afaik] returns: "Input file (../apk\myUploadedFile.apk) was not found or was not readable."
@@ -198,9 +222,10 @@ func apktool(f *os.File,w http.ResponseWriter) {
 	/*CMD 2 command COULD ALSO be ran by doing the following changes:
 From cmd remove "../" and set cmdStruct.Dir= apk_path i.e. to "apk"
 From cmd remove f.Name() and hardcode the filename, this is because f.Name() returns "apk/myUploadedFile.apk" instead of "myUploadedFile.apk"*/
-	cmdStruct.Dir = path
+	cmdStruct.Dir = dir
+	// cmdStruct.Path = path
 	fmt.Println(cmdStruct.Args)
-
+	fmt.Println(os.Getwd())
 	// Connecting Output and Error to commandline
 	cmdStruct.Stdout = os.Stdout
 	cmdStruct.Stderr = os.Stderr
@@ -210,6 +235,7 @@ From cmd remove f.Name() and hardcode the filename, this is because f.Name() ret
 		fmt.Println("Unable to start apktool", err)
 		return
 	}
+	fmt.Println(os.Getwd())
 
 	// fmt.Println(string(out))
 
@@ -263,6 +289,14 @@ func checkFolder (path string,f string) error{
     // return os.Remove(src)
 }
 
-func checkFile (path string,file string) {
+func isApk(path string, f string) bool {
 // @TODO
+	// file path/filename | grep Zip
+	cmd, err := exec.Command("file", strings.Split(filepath.Join(path, f)+"| grep -q Zip", " ")...).Output()
+	if err != nil {
+		fmt.Println("Error validating apk",err)
+}
+
+	fmt.Println(string(cmd))
+	return strings.Contains(string(cmd),"zip")
 }
