@@ -60,8 +60,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) (*os.File, error) {
 	return f, err
 }
 
-
-func tempfileUpload(w http.ResponseWriter, r *http.Request) (string ,error) {
+func tempfileUpload(w http.ResponseWriter, r *http.Request) (string, error) {
 	fPath := "apk"
 	fmt.Fprintf(w, "Uploadig File\n")
 	// store received file
@@ -78,7 +77,7 @@ func tempfileUpload(w http.ResponseWriter, r *http.Request) (string ,error) {
 
 	if err != nil {
 		fmt.Println("Error creating file", err)
-		return "",err
+		return "", err
 	}
 	defer tempFile.Close()
 
@@ -86,14 +85,14 @@ func tempfileUpload(w http.ResponseWriter, r *http.Request) (string ,error) {
 
 	if err != nil {
 		fmt.Println("Error Reading file", err)
-		return "",err
+		return "", err
 	}
 
 	tempFile.Write(fileBytes)
 
 	fmt.Fprintf(w, "File Uploaded sucessfully\n")
 
-	return tempFile.Name() , nil
+	return tempFile.Name(), nil
 }
 
 func Archive(f string) []byte {

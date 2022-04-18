@@ -13,9 +13,9 @@ import (
 )
 
 // apktool
-func Apktool(f *os.File,w http.ResponseWriter) error {
+func Apktool(f *os.File, w http.ResponseWriter) error {
 	// @TODO f.Name() already contains path eg: "apk/myUploadedFile.apk".
-	// Path where apk files are stored. 
+	// Path where apk files are stored.
 	// apk_path := "apk"
 
 	// Path to where the tools are stored.
@@ -40,23 +40,23 @@ func Apktool(f *os.File,w http.ResponseWriter) error {
 	// argsSlice := strings.Split(args," ")
 	// CMD 2 , can also run with this instead of CMD 1
 	// cmd := "apktool.bat d ../" + f.Name() + " -o " + SRC_DIR
-	
+
 	var cmdStruct *exec.Cmd
 	if runtime.GOOS == "windows" {
 		// @TODO fix windows cmd
-		cmdStruct = exec.Command("apktool",strings.Split(args, " ")...)
+		cmdStruct = exec.Command("apktool", strings.Split(args, " ")...)
 	}
 	if runtime.GOOS == "linux" {
 		cmdStruct = exec.Command("apktool", strings.Split(args, " ")...)
-	 
+
 	}
 
 	// In case of CMD 1, without the cmdStruct.Dir = path, cmdStruct.Wait() returns: "Error: Unable to access jarfile apktool.jar"
 	// In case of CMD 2, without the cmdStruct.Dir = path, cmdStruct.Stderr [afaik] returns: "Input file (../apk\myUploadedFile.apk) was not found or was not readable."
-	
+
 	/*CMD 2 command COULD ALSO be ran by doing the following changes:
-From cmd remove "../" and set cmdStruct.Dir= apk_path i.e. to "apk"
-From cmd remove f.Name() and hardcode the filename, this is because f.Name() returns "apk/myUploadedFile.apk" instead of "myUploadedFile.apk"*/
+	From cmd remove "../" and set cmdStruct.Dir= apk_path i.e. to "apk"
+	From cmd remove f.Name() and hardcode the filename, this is because f.Name() returns "apk/myUploadedFile.apk" instead of "myUploadedFile.apk"*/
 	cmdStruct.Dir = dir
 	// cmdStruct.Path = path
 	fmt.Println(cmdStruct.Args)
